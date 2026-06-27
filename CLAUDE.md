@@ -149,7 +149,7 @@ immediately:
   `ACR.py` sets `params.input_type` instead of `model_input_type`, so its input
   type never registers.
 - **License is ambiguous/contradictory:** `LICENSE.txt` is GPLv3, but `setup.py`
-  says `license="BSD"`, ~25 source headers say `BSD-3` (11 say `GPL-3`), and
+  says `license="BSD"`, 26 source headers say `BSD-3` (11 say `GPL-3`), and
   `pyproject.toml`'s `license = { file = "LICENSE" }` points to a non-existent
   filename (it's `LICENSE.txt`). See `IMPROVEMENTS.md` M-12.
 - `LION/operators/__init__.py` eagerly imports `CTProjectionOp`, so

@@ -49,6 +49,20 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[-]` won't do.
   - **Action:** Change to `params.model_input_type = ModelInputType.IMAGE`. Add a
     regression test. Closely related to S-01 (the same input-type machinery).
 
+- [ ] **S-17 — `FBPConvNetImage` reports the wrong `model_input_type`.**
+  - **What:** `FBPConvNetImage` (added upstream in PR #184) is an image-domain
+    variant — its `forward()` takes a pre-computed FBP image and skips the internal
+    FDK call. But it only overrides `forward()`; it inherits `default_parameters()`
+    from `FBPConvNet`, which sets `model_input_type = ModelInputType.SINOGRAM`. So
+    an image-input model advertises itself as taking a sinogram.
+  - **Why:** Solvers/losses branch on `get_input_type()` (e.g. normalisation in
+    `SupervisedSolver`/`AdversarialRegularizerSolver`, the `IMAGE` check in
+    `SURE`), so the wrong input type leads to wrong handling. Compounded by S-01
+    (the `IMAGE`/`NOISY_RECON` enum alias).
+  - **Where:** `LION/models/post_processing/FBPConvNetImage.py`.
+  - **Action:** Override `default_parameters()` (or set in `__init__`) to mark the
+    input type as image-domain (`IMAGE`, once S-01 disambiguates it). Add a test.
+
 - [ ] **S-02 — Remove the no-op `__metaclass__` assignment.**
   - **What:** `LIONmodel.__init__` sets a local variable `__metaclass__ = ABCMeta`.
     This is the Python-2 idiom and does nothing in Python 3 (abstractness already
@@ -261,7 +275,7 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[-]` won't do.
     - `LICENSE.txt` is the **GNU GPL v3** (strong copyleft).
     - `setup.py` declares `license="BSD"` (a permissive license — the opposite of
       GPL).
-    - Source-file headers disagree: ~25 files say `License : BSD-3`, ~11 say
+    - Source-file headers disagree: 26 files say `License : BSD-3`, 11 say
       `License : GPL-3`.
     - `pyproject.toml` has `license = { file = "LICENSE" }`, which points at a
       filename that **does not exist** (the file is `LICENSE.txt`).
@@ -357,8 +371,8 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[-]` won't do.
 
 0. **Resolve the licensing ambiguity (M-12) early** — it gates whether the code
    can be safely reused/redistributed and is independent of the rest.
-1. **Quick wins / unblockers:** S-01, S-13 (the two input-type bugs), S-02, S-04,
-   S-05, M-02 (stops the SIGFPE), S-10/S-11/S-14.
+1. **Quick wins / unblockers:** S-01, S-13, S-17 (the input-type bugs), S-02,
+   S-04, S-05, M-02 (stops the SIGFPE), S-10/S-11/S-14.
 2. **Make the project testable in CI:** M-06/M-07 (lazy imports) + L-04 (CPU
    install) → M-01 (CI runs tests) → M-04 (ruff).
 3. **Harden:** M-03 → L-01 (tests), M-05 (lazy data path), M-08/M-09 (data-loader
