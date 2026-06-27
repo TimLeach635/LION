@@ -38,6 +38,17 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[-]` won't do.
   - **Risk:** Medium — changing the integer may affect serialized models. Consider
     keeping `NOISY_RECON = 1`, `IMAGE = 2` and a migration note.
 
+- [ ] **S-13 — Fix wrong attribute name in `ACR` (`input_type` vs `model_input_type`).**
+  - **What:** `ACR.default_parameters()` does `params.input_type = ModelInputType.IMAGE`,
+    but the attribute defined on `LIONModelParameter` (and read by
+    `get_input_type()`) is `model_input_type`. So ACR sets a stray, unused
+    attribute and its real `model_input_type` stays `None` —
+    `model.get_input_type()` returns `None` for ACR, breaking the input-type
+    checks in the solvers/losses.
+  - **Where:** `LION/models/learned_regularizer/ACR.py` (~line 183).
+  - **Action:** Change to `params.model_input_type = ModelInputType.IMAGE`. Add a
+    regression test. Closely related to S-01 (the same input-type machinery).
+
 - [ ] **S-02 — Remove the no-op `__metaclass__` assignment.**
   - **What:** `LIONmodel.__init__` sets a local variable `__metaclass__ = ABCMeta`.
     This is the Python-2 idiom and does nothing in Python 3 (abstractness already
@@ -108,6 +119,35 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[-]` won't do.
     workflow comments about Python 3.14 incompatibility.
   - **Action:** Bump Black to a current release and update the hook rev; re-run on
     the codebase (a formatting-only commit).
+
+- [ ] **S-14 — Fix the `setuptools-git-versioning` version-file paths.**
+  - **What:** `pyproject.toml` sets `version_file = "src/LION/VERSION"` and
+    `[tool.setuptools.package-data] "LION" = ["VERSION"]`, but there is no `src/`
+    layout and no `VERSION` file anywhere in the tree. So
+    `count_commits_from_version_file = true` is inert and the package-data entry
+    references a missing file. (The build currently falls back to the git tag,
+    `0.2`.)
+  - **Where:** `pyproject.toml` (`[tool.setuptools-git-versioning]`,
+    `[tool.setuptools.package-data]`).
+  - **Action:** Point `version_file` at the real path (the package lives at
+    `LION/`, not `src/LION/`) and create the `VERSION` file, or drop the
+    version-file mechanism and rely solely on git tags. Remove the dangling
+    package-data entry.
+
+- [ ] **S-15 — Drop the deprecated `codecov` dependency.**
+  - **What:** The `tests` extra lists `codecov`; the `codecov` PyPI uploader package
+    has been sunset in favour of the Codecov CLI/uploader action.
+  - **Where:** `pyproject.toml` `[project.optional-dependencies] tests`.
+  - **Action:** Remove `codecov`; if coverage upload is wanted, use the Codecov
+    GitHub Action in CI (`pytest-cov` is already present for local coverage).
+
+- [ ] **S-16 — Rename/relocate the misnamed `LION/utils/test_model.py`.**
+  - **What:** Despite the `test_` prefix, this is a trained-model *evaluation*
+    helper (it imports `experiments` → `tomosipo`), not a pytest module. The name
+    is misleading and risks accidental collection.
+  - **Where:** `LION/utils/test_model.py`.
+  - **Action:** Rename to something like `model_evaluation.py` (and update imports),
+    or move it out of the package namespace.
 
 ---
 
@@ -213,6 +253,28 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[-]` won't do.
   - **Action:** Add short READMEs explaining each subpackage's role and entry
     points; standardise on one format.
 
+### Licensing
+
+- [ ] **M-12 — Reconcile contradictory license declarations.** ⚠️ *Important —
+  needs an owner/legal decision, not just a mechanical edit.*
+  - **What:** The project ships **contradictory** licensing:
+    - `LICENSE.txt` is the **GNU GPL v3** (strong copyleft).
+    - `setup.py` declares `license="BSD"` (a permissive license — the opposite of
+      GPL).
+    - Source-file headers disagree: ~25 files say `License : BSD-3`, ~11 say
+      `License : GPL-3`.
+    - `pyproject.toml` has `license = { file = "LICENSE" }`, which points at a
+      filename that **does not exist** (the file is `LICENSE.txt`).
+  - **Why:** BSD vs GPL is a material legal difference (permissive vs copyleft).
+    Downstream users cannot currently tell what license actually governs the code,
+    and the packaging metadata references a missing file.
+  - **Where:** `LICENSE.txt`, `setup.py`, `pyproject.toml`, per-file headers across
+    `LION/`.
+  - **Action:** Have the maintainers/copyright holders decide the intended license,
+    then make everything consistent: fix `pyproject.toml` to reference the actual
+    file (or an SPDX expression), correct `setup.py`, and normalise all source-file
+    headers. Until resolved, treat the license as ambiguous.
+
 ---
 
 ## Large improvements
@@ -293,8 +355,10 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[-]` won't do.
 
 ## Suggested sequencing (a starting point)
 
-1. **Quick wins / unblockers:** S-01, S-02, S-04, S-05, M-02 (stops the SIGFPE),
-   S-10/S-11.
+0. **Resolve the licensing ambiguity (M-12) early** — it gates whether the code
+   can be safely reused/redistributed and is independent of the rest.
+1. **Quick wins / unblockers:** S-01, S-13 (the two input-type bugs), S-02, S-04,
+   S-05, M-02 (stops the SIGFPE), S-10/S-11/S-14.
 2. **Make the project testable in CI:** M-06/M-07 (lazy imports) + L-04 (CPU
    install) → M-01 (CI runs tests) → M-04 (ruff).
 3. **Harden:** M-03 → L-01 (tests), M-05 (lazy data path), M-08/M-09 (data-loader

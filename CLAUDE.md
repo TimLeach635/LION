@@ -60,7 +60,9 @@ The base classes worth knowing:
    19 modules import `tomosipo` at module top, so anything touching CT needs a GPU.
 2. **`tomosipo` and `ts_algorithms` are not on PyPI.** They are git-only
    dependencies (`github.com/ahendriksen/...`) pinned in `pyproject.toml`. Their
-   legacy `setup.py` cannot build a wheel under a modern (non-conda) setuptools.
+   legacy `setup.py` failed to build a wheel under the modern setuptools tested
+   here (`AttributeError: install_layout` with Debian's setuptools 68); the
+   project's conda environment evidently provides a compatible toolchain.
 3. **`astra-toolbox` is conda-first.** The README installs it via conda; a PyPI
    wheel exists (`astra-toolbox`) and imports without a GPU.
 4. **`LION/utils/paths.py` raises at import time if `LION_DATA_PATH` is unset.**
@@ -90,8 +92,9 @@ Useful on a machine with no conda and no GPU. The CT operators will still not
    (`https://github.com/ahendriksen/tomosipo/archive/refs/tags/v0.7.0.tar.gz`,
    `.../ts_algorithms/archive/refs/heads/master.tar.gz`) and copy the
    pure-Python `tomosipo/` and `ts_algorithms/` package directories into
-   site-packages. (A normal `pip install git+...` works only with conda's
-   setuptools; the legacy `setup.py` fails to build a wheel otherwise.)
+   site-packages. (A normal `pip install git+...` failed here because the legacy
+   `setup.py` can't build a wheel under this environment's setuptools — copying
+   the pure-Python package dirs sidesteps the build entirely.)
 3. Install the remaining PyPI deps:
    `deepinv h5py imageio kornia lightning matplotlib numpy opencv-python-headless
    pandas pillow pydicom pylidc ptwt PyWavelets pytorch-wavelets scikit-image scipy
@@ -142,7 +145,13 @@ pytest -o addopts="" -p no:cacheprovider -m "not cuda" -k "not cuda" \
 See `IMPROVEMENTS.md` for the full, prioritized list. A few that will bite you
 immediately:
 - `LION/models/LIONmodel.py`: `ModelInputType` enum defines both `NOISY_RECON = 1`
-  and `IMAGE = 1` (duplicate value — `IMAGE` aliases `NOISY_RECON`).
+  and `IMAGE = 1` (duplicate value — `IMAGE` aliases `NOISY_RECON`). Related:
+  `ACR.py` sets `params.input_type` instead of `model_input_type`, so its input
+  type never registers.
+- **License is ambiguous/contradictory:** `LICENSE.txt` is GPLv3, but `setup.py`
+  says `license="BSD"`, ~25 source headers say `BSD-3` (11 say `GPL-3`), and
+  `pyproject.toml`'s `license = { file = "LICENSE" }` points to a non-existent
+  filename (it's `LICENSE.txt`). See `IMPROVEMENTS.md` M-12.
 - `LION/operators/__init__.py` eagerly imports `CTProjectionOp`, so
   `import LION.operators` pulls in `tomosipo` even for non-CT use.
 - `LION/data_loaders/2deteCT/` is not an importable module name (starts with a digit).
