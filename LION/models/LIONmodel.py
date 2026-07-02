@@ -6,13 +6,13 @@
 # =============================================================================
 
 
-#%% This is a base class for LION models.
+# %% This is a base class for LION models.
 #
 # All classes must derive from this one.
 # It definest a bunch of auxiliary functions
 #
 
-#%% Imports
+# %% Imports
 
 # You will want to import LIONParameter, as all models must save and use Parameters.
 from enum import Enum
