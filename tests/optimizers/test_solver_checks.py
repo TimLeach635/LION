@@ -10,18 +10,15 @@ import pytest
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
-# tomosipo needs a CUDA-enabled astra build and fails to import on some platforms
-# (e.g. macOS). The solver only builds an operator with it, so stub it when the
-# real one is missing.
+# tomosipo needs a CUDA-enabled astra build, unavailable on some platforms.
 try:
     import tomosipo  # noqa: F401
 except ImportError:
     sys.modules["tomosipo"] = MagicMock()
     sys.modules["tomosipo.torch_support"] = MagicMock()
 
-# Other test modules (e.g. tests/classical_algorithms/test_sirt.py) replace LION
-# modules in sys.modules with mocks for the whole process, which breaks the real
-# imports below depending on test order. Drop those fakes; real modules are kept.
+# Other test modules mock LION modules in sys.modules for the whole process, so
+# drop those fakes to keep the imports below order-independent.
 for _name, _module in list(sys.modules.items()):
     if _name.startswith("LION") and isinstance(_module, MagicMock):
         del sys.modules[_name]
@@ -66,8 +63,6 @@ def test_fully_configured_solver_reports_ready(tmp_path):
     assert solver.check_training_ready() == 0
     assert solver.check_validation_ready() == 0
     assert solver.check_testing_ready() == 0
-    # checked the solver's `load_checkpoint` method instead of the
-    # `do_load_checkpoint` flag, so this always reported a type failure
     assert solver.check_checkpointing_ready() == 0
     assert solver.check_complete() == 0
 
@@ -76,8 +71,7 @@ def test_check_validation_ready_reports_missing_loader(tmp_path):
     solver = _ready_solver(tmp_path)
     solver.validation_loader = None
 
-    # Must not be reported as ready: LIONsolver.validate() runs validation when
-    # this returns 0, which would then fail on the missing loader.
+    # callers run validation when this returns 0
     assert solver.check_validation_ready() != 0
 
 
