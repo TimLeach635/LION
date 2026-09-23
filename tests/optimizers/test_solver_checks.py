@@ -1,15 +1,5 @@
 """Tests for the LIONsolver readiness checks.
 
-These cover two bugs in ``check_*_ready``/``check_complete``:
-
-- each check overwrote ``return_code`` instead of accumulating it, so the value
-  returned reflected only the *last* check. Callers act on that value (e.g.
-  ``LIONsolver.validate`` runs validation when ``check_validation_ready()`` is 0),
-  so a missing validation loader was reported as "ready".
-- ``check_complete`` called ``check_validation_ready(error, autofill)``, but that
-  method's signature is ``(autofill, verbose)``, so the arguments landed in the
-  wrong parameters: ``verbose`` was given the value of ``autofill``.
-
 DnCNN is used because it needs no CT geometry of its own, so these run on CPU.
 """
 
@@ -117,10 +107,7 @@ def test_check_complete_reports_bad_validation_fn_when_not_autofilling(tmp_path)
     solver.validation_fn = 42  # not callable
     solver.verbose = True
 
-    # check_complete must pass its own `verbose` to check_validation_ready. The
-    # old call passed `autofill` there, so with autofill=False the check went
-    # silent -- and __check_attribute only returns a code when it warns, so the
-    # bad validation_fn was hidden from the return value as well.
+    # check_complete must pass its own `verbose` to check_validation_ready
     with pytest.warns(UserWarning, match="validation_fn"):
         assert solver.check_complete(error=False, autofill=False) != 0
 
