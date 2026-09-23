@@ -29,6 +29,13 @@ except ImportError:
     sys.modules["tomosipo"] = MagicMock()
     sys.modules["tomosipo.torch_support"] = MagicMock()
 
+# Other test modules (e.g. tests/classical_algorithms/test_sirt.py) replace LION
+# modules in sys.modules with mocks for the whole process, which breaks the real
+# imports below depending on test order. Drop those fakes; real modules are kept.
+for _name, _module in list(sys.modules.items()):
+    if _name.startswith("LION") and isinstance(_module, MagicMock):
+        del sys.modules[_name]
+
 from LION.CTtools.ct_geometry import Geometry
 from LION.models.CNNs.dncnn import DnCNN
 from LION.optimizers.SupervisedSolver import SupervisedSolver
@@ -69,6 +76,9 @@ def test_fully_configured_solver_reports_ready(tmp_path):
     assert solver.check_training_ready() == 0
     assert solver.check_validation_ready() == 0
     assert solver.check_testing_ready() == 0
+    # checked the solver's `load_checkpoint` method instead of the
+    # `do_load_checkpoint` flag, so this always reported a type failure
+    assert solver.check_checkpointing_ready() == 0
     assert solver.check_complete() == 0
 
 
